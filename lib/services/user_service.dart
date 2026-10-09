@@ -21,13 +21,20 @@ class UserService {
     return rows.map(AppUser.fromMap).toList();
   }
 
-  Future<void> addAdmin(String username, String password, {String? sourceImagePath}) async {
+  Future<void> addAdmin(
+    String username,
+    String password, {
+    String? sourceImagePath,
+  }) async {
     final db = await DatabaseHelper.instance.database;
     final salt = PasswordHasher.generateSalt();
     final hash = PasswordHasher.hash(password, salt);
     final storedImagePath = sourceImagePath == null
         ? null
-        : await ImageStorage.copyToAppStorage(sourceImagePath, subfolder: 'avatars');
+        : await ImageStorage.copyToAppStorage(
+            sourceImagePath,
+            subfolder: 'avatars',
+          );
 
     try {
       await db.insert('users', {

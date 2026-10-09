@@ -4,6 +4,10 @@ class ConstantsEntry {
   final String phone;
   final String ip;
   final String? imagePath;
+  final int? siteId;
+  final int? siteNumberId;
+  final String? siteName;
+  final String? number;
 
   const ConstantsEntry({
     required this.id,
@@ -11,6 +15,10 @@ class ConstantsEntry {
     required this.phone,
     required this.ip,
     this.imagePath,
+    this.siteId,
+    this.siteNumberId,
+    this.siteName,
+    this.number,
   });
 
   factory ConstantsEntry.fromMap(Map<String, Object?> map) {
@@ -20,6 +28,10 @@ class ConstantsEntry {
       phone: map['phone'] as String,
       ip: map['ip'] as String,
       imagePath: map['image_path'] as String?,
+      siteId: map['site_id'] as int?,
+      siteNumberId: map['site_number_id'] as int?,
+      siteName: map['site_name'] as String?,
+      number: map['number'] as String?,
     );
   }
 }

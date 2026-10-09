@@ -4,11 +4,27 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../models/constants_entry.dart';
+import '../models/number_constants.dart';
 import '../services/constants_service.dart';
 import 'constants_entry_form_screen.dart';
+import 'number_constants_form_screen.dart';
 
 class ConstantsScreen extends StatefulWidget {
-  const ConstantsScreen({super.key});
+  const ConstantsScreen({
+    super.key,
+    this.siteId,
+    this.siteNumberId,
+    this.siteName,
+    this.number,
+  });
+
+  final int? siteId;
+  final int? siteNumberId;
+  final String? siteName;
+  final String? number;
+
+  bool get isNumberView =>
+      siteId != null && siteNumberId != null && number != null;
 
   @override
   State<ConstantsScreen> createState() => _ConstantsScreenState();
@@ -16,6 +32,7 @@ class ConstantsScreen extends StatefulWidget {
 
 class _ConstantsScreenState extends State<ConstantsScreen> {
   late Future<List<ConstantsEntry>> _entriesFuture;
+  Future<NumberConstants>? _numberConstantsFuture;
 
   @override
   void initState() {
@@ -25,13 +42,56 @@ class _ConstantsScreenState extends State<ConstantsScreen> {
 
   void _reload() {
     setState(() {
-      _entriesFuture = ConstantsService.instance.getEntries();
+      _entriesFuture = ConstantsService.instance.getEntries(
+        siteNumberId: widget.siteNumberId,
+      );
+      if (widget.siteNumberId != null) {
+        _numberConstantsFuture = ConstantsService.instance.getNumberConstants(
+          widget.siteNumberId!,
+        );
+      }
     });
   }
 
-  Future<void> _openAddPage() async {
+  Future<void> _openEditEntry(ConstantsEntry entry) async {
+    if (!widget.isNumberView) return;
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const ConstantsEntryFormScreen()),
+      MaterialPageRoute(
+        builder: (_) => ConstantsEntryFormScreen(
+          siteId: widget.siteId!,
+          siteNumberId: widget.siteNumberId!,
+          siteName: widget.siteName ?? '',
+          number: widget.number!,
+          entry: entry,
+        ),
+      ),
+    );
+    if (saved == true) _reload();
+  }
+
+  Future<void> _openEditNumberConstants(NumberConstants constants) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => NumberConstantsFormScreen(
+          constants: constants,
+          number: widget.number!,
+        ),
+      ),
+    );
+    if (saved == true) _reload();
+  }
+
+  Future<void> _openAddPage() async {
+    if (!widget.isNumberView) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ConstantsEntryFormScreen(
+          siteId: widget.siteId!,
+          siteNumberId: widget.siteNumberId!,
+          siteName: widget.siteName ?? '',
+          number: widget.number!,
+        ),
+      ),
     );
     if (saved == true) _reload();
   }
@@ -64,12 +124,18 @@ class _ConstantsScreenState extends State<ConstantsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('الثوابت')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddPage,
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة'),
+      appBar: AppBar(
+        title: Text(
+          widget.isNumberView ? 'الثوابت — ${widget.number}' : 'كل الثوابت',
+        ),
       ),
+      floatingActionButton: widget.isNumberView
+          ? FloatingActionButton.extended(
+              onPressed: _openAddPage,
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة'),
+            )
+          : null,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Center(
@@ -77,7 +143,47 @@ class _ConstantsScreenState extends State<ConstantsScreen> {
             constraints: const BoxConstraints(maxWidth: 800),
             child: Column(
               children: [
-                const _ConstantsHeaderCard(),
+                if (widget.isNumberView) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.pin_outlined,
+                        color: AppTheme.gold,
+                      ),
+                      title: Text(
+                        widget.number!,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(widget.siteName ?? ''),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  const Text(
+                    'هذه الصفحة تعرض كل الثوابت. لإضافة ثابت جديد، اختر الموقع ثم الرقم.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (_numberConstantsFuture != null)
+                  FutureBuilder<NumberConstants>(
+                    future: _numberConstantsFuture,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      return _ConstantsHeaderCard(
+                        constants: snapshot.data!,
+                        onEdit: () => _openEditNumberConstants(snapshot.data!),
+                      );
+                    },
+                  ),
                 const SizedBox(height: 24),
                 FutureBuilder<List<ConstantsEntry>>(
                   future: _entriesFuture,
@@ -102,24 +208,48 @@ class _ConstantsScreenState extends State<ConstantsScreen> {
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('')),
-                            DataColumn(label: Text('الاسم')),
-                            DataColumn(label: Text('رقم الهاتف')),
-                            DataColumn(label: Text('IP')),
-                            DataColumn(label: Text('')),
+                          columns: [
+                            const DataColumn(label: Text('')),
+                            if (!widget.isNumberView) ...const [
+                              DataColumn(label: Text('الموقع')),
+                              DataColumn(label: Text('الرقم')),
+                            ],
+                            const DataColumn(label: Text('الاسم')),
+                            const DataColumn(label: Text('رقم الهاتف')),
+                            const DataColumn(label: Text('IP')),
+                            const DataColumn(label: Text('')),
                           ],
                           rows: entries.map((entry) {
                             return DataRow(
                               cells: [
-                                DataCell(_EntryThumbnail(imagePath: entry.imagePath)),
+                                DataCell(
+                                  _EntryThumbnail(imagePath: entry.imagePath),
+                                ),
+                                if (!widget.isNumberView) ...[
+                                  DataCell(Text(entry.siteName ?? 'غير مرتبط')),
+                                  DataCell(Text(entry.number ?? '—')),
+                                ],
                                 DataCell(Text(entry.name)),
                                 DataCell(Text(entry.phone)),
                                 DataCell(Text(entry.ip)),
                                 DataCell(
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                    onPressed: () => _confirmDelete(entry),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'تعديل',
+                                        icon: const Icon(Icons.edit_outlined),
+                                        onPressed: () => _openEditEntry(entry),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'حذف',
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () => _confirmDelete(entry),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -150,7 +280,11 @@ class _EntryThumbnail extends StatelessWidget {
       return CircleAvatar(
         radius: 18,
         backgroundColor: Colors.grey.shade200,
-        child: Icon(Icons.image_outlined, size: 18, color: Colors.grey.shade500),
+        child: Icon(
+          Icons.image_outlined,
+          size: 18,
+          color: Colors.grey.shade500,
+        ),
       );
     }
     return CircleAvatar(
@@ -161,7 +295,10 @@ class _EntryThumbnail extends StatelessWidget {
 }
 
 class _ConstantsHeaderCard extends StatelessWidget {
-  const _ConstantsHeaderCard();
+  const _ConstantsHeaderCard({required this.constants, required this.onEdit});
+
+  final NumberConstants constants;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -169,12 +306,35 @@ class _ConstantsHeaderCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          children: const [
-            _HeaderRow(label: 'IP', value: '192.168.1.10'),
-            Divider(height: 28),
-            _HeaderRow(label: 'واتساب', value: '+964 770 123 4567'),
-            Divider(height: 28),
-            _HeaderRow(label: 'ثابت', value: '07701234567'),
+          children: [
+            CircleAvatar(
+              radius: 44,
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: constants.imagePath == null
+                  ? null
+                  : FileImage(File(constants.imagePath!)),
+              child: constants.imagePath == null
+                  ? Icon(
+                      Icons.image_outlined,
+                      size: 32,
+                      color: Colors.grey.shade500,
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('تعديل الثوابت'),
+              ),
+            ),
+            _HeaderRow(label: 'IP', value: constants.ip),
+            const Divider(height: 28),
+            _HeaderRow(label: 'واتساب', value: constants.whatsapp),
+            const Divider(height: 28),
+            _HeaderRow(label: 'ثابت', value: constants.landline),
           ],
         ),
       ),

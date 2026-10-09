@@ -4,7 +4,6 @@ import '../core/theme/app_theme.dart';
 import '../models/user_role.dart';
 import '../services/auth_service.dart';
 import 'admins_screen.dart';
-import 'constants_screen.dart';
 import 'login_screen.dart';
 import 'sites_screen.dart';
 
@@ -21,7 +20,8 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = AuthService.instance.currentUser?.role == UserRole.superAdmin;
+    final isSuperAdmin =
+        AuthService.instance.currentUser?.role == UserRole.superAdmin;
 
     return Scaffold(
       appBar: AppBar(
@@ -59,15 +59,6 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              _HomeButton(
-                label: 'الثوابت',
-                icon: Icons.dashboard_customize_outlined,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConstantsScreen()),
-                  );
-                },
-              ),
             ],
           ),
         ),
@@ -77,7 +68,11 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _HomeButton extends StatelessWidget {
-  const _HomeButton({required this.label, required this.icon, required this.onTap});
+  const _HomeButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   final String label;
   final IconData icon;

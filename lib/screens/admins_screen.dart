@@ -30,9 +30,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
   }
 
   Future<void> _openAddPage() async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AdminFormScreen()),
-    );
+    final saved = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const AdminFormScreen()));
     if (saved == true) _reload();
   }
 
@@ -93,7 +92,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 itemCount: admins.length,
                 itemBuilder: (context, index) {
                   final admin = admins[index];
@@ -117,11 +119,17 @@ class _AdminsScreenState extends State<AdminsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit_outlined, color: AppTheme.primary),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: AppTheme.primary,
+                            ),
                             onPressed: () => _openEditPage(admin),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
                             onPressed: () => _confirmDelete(admin),
                           ),
                         ],

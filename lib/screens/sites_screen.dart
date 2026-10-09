@@ -24,9 +24,7 @@ class _SitesScreenState extends State<SitesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('المواقع'),
-      ),
+      appBar: AppBar(title: const Text('المواقع')),
       body: FutureBuilder<List<Site>>(
         future: _sitesFuture,
         builder: (context, snapshot) {
@@ -39,7 +37,10 @@ class _SitesScreenState extends State<SitesScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 children: sites.map((site) => _SiteCard(site: site)).toList(),
               ),
             ),
@@ -61,9 +62,9 @@ class _SiteCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => NumbersScreen(site: site)),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => NumbersScreen(site: site)));
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),

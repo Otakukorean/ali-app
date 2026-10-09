@@ -31,13 +31,14 @@ class DatabaseHelper {
   }
 
   Future<Database> _open() async {
-    final dbPath = debugDatabasePathOverride ??
+    final dbPath =
+        debugDatabasePathOverride ??
         p.join((await getApplicationSupportDirectory()).path, 'alghaif.db');
 
     final db = await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 8,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       ),
@@ -79,14 +80,60 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE site_numbers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        site_id INTEGER NOT NULL,
+        site_prefix_id INTEGER NOT NULL,
+        number TEXT NOT NULL,
+        sort_order INTEGER NOT NULL,
+        UNIQUE (site_id, number),
+        FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE,
+        FOREIGN KEY (site_prefix_id) REFERENCES site_prefixes(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX site_numbers_prefix_idx
+      ON site_numbers (site_prefix_id, sort_order)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE number_constants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        site_number_id INTEGER NOT NULL UNIQUE,
+        ip TEXT NOT NULL,
+        whatsapp TEXT NOT NULL,
+        landline TEXT NOT NULL,
+        image_path TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (site_number_id) REFERENCES site_numbers(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE constants_entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone TEXT NOT NULL,
         ip TEXT NOT NULL,
         image_path TEXT,
-        created_at TEXT NOT NULL
+        site_id INTEGER,
+        site_number_id INTEGER,
+        number TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE,
+        FOREIGN KEY (site_number_id) REFERENCES site_numbers(id) ON DELETE CASCADE
       )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX constants_entries_site_number_idx
+      ON constants_entries (site_id, number)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX constants_entries_number_id_idx
+      ON constants_entries (site_number_id)
     ''');
   }
 
@@ -137,6 +184,72 @@ class DatabaseHelper {
         }
       }
     }
+    if (oldVersion < 5) {
+      await db.execute(
+        'ALTER TABLE constants_entries ADD COLUMN site_id INTEGER',
+      );
+      await db.execute('ALTER TABLE constants_entries ADD COLUMN number TEXT');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS constants_entries_site_number_idx
+        ON constants_entries (site_id, number)
+      ''');
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS site_numbers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          site_id INTEGER NOT NULL,
+          site_prefix_id INTEGER NOT NULL,
+          number TEXT NOT NULL,
+          sort_order INTEGER NOT NULL,
+          UNIQUE (site_id, number),
+          FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE,
+          FOREIGN KEY (site_prefix_id) REFERENCES site_prefixes(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS site_numbers_prefix_idx
+        ON site_numbers (site_prefix_id, sort_order)
+      ''');
+      await _seedSiteNumbers(db);
+      await db.execute(
+        'ALTER TABLE constants_entries ADD COLUMN site_number_id INTEGER',
+      );
+      await db.execute('''
+        UPDATE constants_entries
+        SET site_number_id = (
+          SELECT site_numbers.id
+          FROM site_numbers
+          WHERE site_numbers.site_id = constants_entries.site_id
+            AND site_numbers.number = constants_entries.number
+          LIMIT 1
+        )
+        WHERE site_id IS NOT NULL AND number IS NOT NULL
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS constants_entries_number_id_idx
+        ON constants_entries (site_number_id)
+      ''');
+    }
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS number_constants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          site_number_id INTEGER NOT NULL UNIQUE,
+          ip TEXT NOT NULL,
+          whatsapp TEXT NOT NULL,
+          landline TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (site_number_id) REFERENCES site_numbers(id) ON DELETE CASCADE
+        )
+      ''');
+      await _seedNumberConstants(db);
+    }
+    if (oldVersion < 8) {
+      await db.execute(
+        'ALTER TABLE number_constants ADD COLUMN image_path TEXT',
+      );
+    }
   }
 
   Future<void> _seedIfNeeded(Database db) async {
@@ -175,5 +288,58 @@ class DatabaseHelper {
         }
       }
     }
+
+    await _seedSiteNumbers(db);
+    await _seedNumberConstants(db);
+  }
+
+  Future<void> _seedSiteNumbers(Database db) async {
+    final prefixes = await db.query(
+      'site_prefixes',
+      columns: ['id', 'site_id', 'prefix'],
+    );
+    final batch = db.batch();
+    for (final prefix in prefixes) {
+      final prefixId = prefix['id'] as int;
+      final siteId = prefix['site_id'] as int;
+      final prefixValue = prefix['prefix'] as String;
+      final existingCount = firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM site_numbers WHERE site_prefix_id = ?',
+          [prefixId],
+        ),
+      );
+      if (existingCount == 100) continue;
+      for (var suffix = 0; suffix < 100; suffix++) {
+        batch.insert('site_numbers', {
+          'site_id': siteId,
+          'site_prefix_id': prefixId,
+          'number': '$prefixValue${suffix.toString().padLeft(2, '0')}',
+          'sort_order': suffix,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> _seedNumberConstants(Database db) async {
+    await db.rawInsert(
+      '''
+      INSERT OR IGNORE INTO number_constants (
+        site_number_id,
+        ip,
+        whatsapp,
+        landline,
+        updated_at
+      )
+      SELECT id, ?, ?, ?, ? FROM site_numbers
+      ''',
+      [
+        '192.168.1.10',
+        '+964 770 123 4567',
+        '07701234567',
+        DateTime.now().toIso8601String(),
+      ],
+    );
   }
 }

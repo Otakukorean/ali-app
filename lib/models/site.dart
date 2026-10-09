@@ -3,11 +3,7 @@ class Site {
   final String name;
   final int sortOrder;
 
-  const Site({
-    required this.id,
-    required this.name,
-    required this.sortOrder,
-  });
+  const Site({required this.id, required this.name, required this.sortOrder});
 
   factory Site.fromMap(Map<String, Object?> map) {
     return Site(

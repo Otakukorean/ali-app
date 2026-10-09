@@ -29,7 +29,9 @@ class _AdminFormScreenState extends State<AdminFormScreen> {
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(text: widget.admin?.username ?? '');
+    _usernameController = TextEditingController(
+      text: widget.admin?.username ?? '',
+    );
   }
 
   @override
@@ -59,7 +61,9 @@ class _AdminFormScreenState extends State<AdminFormScreen> {
         await UserService.instance.updateAdmin(
           widget.admin!.id,
           username: _usernameController.text,
-          password: _passwordController.text.isEmpty ? null : _passwordController.text,
+          password: _passwordController.text.isEmpty
+              ? null
+              : _passwordController.text,
           sourceImagePath: _pickedImagePath,
         );
       } else {
@@ -109,9 +113,11 @@ class _AdminFormScreenState extends State<AdminFormScreen> {
                         backgroundImage: _pickedImagePath != null
                             ? FileImage(File(_pickedImagePath!))
                             : (existingImagePath != null
-                                ? FileImage(File(existingImagePath))
-                                : null),
-                        child: _pickedImagePath == null && existingImagePath == null
+                                  ? FileImage(File(existingImagePath))
+                                  : null),
+                        child:
+                            _pickedImagePath == null &&
+                                existingImagePath == null
                             ? Icon(Icons.person, color: Colors.grey.shade500)
                             : null,
                       ),
@@ -127,7 +133,9 @@ class _AdminFormScreenState extends State<AdminFormScreen> {
                   TextFormField(
                     controller: _usernameController,
                     textAlign: TextAlign.right,
-                    decoration: const InputDecoration(labelText: 'اسم المستخدم'),
+                    decoration: const InputDecoration(
+                      labelText: 'اسم المستخدم',
+                    ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'الرجاء إدخال اسم المستخدم';
@@ -141,7 +149,9 @@ class _AdminFormScreenState extends State<AdminFormScreen> {
                     textAlign: TextAlign.right,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: _isEditing ? 'كلمة مرور جديدة (اختياري)' : 'كلمة المرور',
+                      labelText: _isEditing
+                          ? 'كلمة مرور جديدة (اختياري)'
+                          : 'كلمة المرور',
                     ),
                     validator: (value) {
                       if (!_isEditing && (value == null || value.isEmpty)) {
